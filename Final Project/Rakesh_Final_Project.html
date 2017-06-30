@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <style>
+        body {
+            background-image: url("bgimage.jpg");
+        }
+        
+        canvas {
+            border: 2px solid #d3d3d3;
+            background-color: cornsilk;
+            margin: auto;
+            display: block;
+            font-kerning: normal;
+            border-radius: 9px;
+        }
+        
+        h1 {
+            color: coral;
+            font-size: 45px;
+            font-family: cursive;
+            text-align: center;
+        }
+        
+        h4 {
+            color: chocolate;
+            font-size: 25px;
+            font-family: fantasy;
+            text-align: justify;
+        }
+        
+        p {
+            font-size: 17px;
+            font-family: serif;
+            color: aliceblue;
+        }
+        
+        #hint {
+            font-style: italic;
+        }
+        
+        table {
+            border: 2px solid #d3d3d3;
+            border-radius: 9px;
+        }
+        
+        td {
+            display: block;
+            margin: auto;
+        }
+        
+        #startGame {
+            background-color: chartreuse;
+            border: none;
+            color: black;
+            padding: 10px 20px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 24px;
+            margin: 4px 2px;
+            cursor: pointer;
+            border-radius: 5px;
+            align-self: center;
+        }
+        
+        #pname {
+            border: 2px solid #d3d3d3;
+            box-sizing: inherit;
+            font-size: 20px;
+            border-radius: 5px;
+        }
+        
+        #startGame:hover {
+            box-shadow: 0 12px 16px 0 rgba(0, 0, 0, 0.24), 0 17px 50px 0 rgba(0, 0, 0, 0.19);
+        }
+        
+        #message {
+            font-size: 25px;
+            font-family: fantasy;
+            font-weight: 100;
+            color: darkgoldenrod;
+        }
+
+    </style>
+    <script>
+        window.onload = function() {
+            getPlayerDetails();
+        }
+
+        var myGamePiece;
+        var myObstacles = [];
+        var myScore;
+        var crashSound;
+        var bgMusic;
+        var playerName;
+        var startbutton;
+        var level = 1;
+        var speed = 1;
+        var check = 500;
+        var a = document.getElementById("details");
+        var finalScore;
+
+        function getPlayerDetails() {
+            startbutton = document.getElementById("startGame");
+            startbutton.onclick = startGame;
+        }
+
+        function startGame() {
+            //a.style.display="none";
+            myGamePiece = new component(90, 50, "car.png", 10, 240, "image");
+            myScore = new component("25px", "Times", "blue", 550, 70, "text");
+            mylevel = new component("40px", "sans-serif", "brown", 300, 50, "text");
+            crashSound = new sound("carhit.mp3");
+            //alert();
+            bgMusic = new sound("bgmusic.mp3");
+            bgMusic.play();
+            myGameArea.start();
+
+        }
+
+        var myGameArea = {
+            canvas: document.createElement("canvas"),
+            id: "canvas",
+            start: function() {
+                this.canvas.width = 700;
+                this.canvas.height = 500;
+                this.context = this.canvas.getContext("2d");
+                document.body.insertBefore(this.canvas, document.body.childNodes[16]);
+                this.frameNo = 0;
+                this.interval = setInterval(updateGameArea, 20);
+
+                window.addEventListener('keydown', function(e) {
+                    myGameArea.key = e.keyCode;
+                })
+
+                window.addEventListener('keyup', function(e) {
+                    myGameArea.key = false;
+                })
+            },
+            clear: function() {
+                this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
+            },
+            stop: function() {
+                clearInterval(this.interval);
+                //myGamePiece.speedX = 0;
+                //myGamePiece.speedY = 0;
+            },
+            pause: function() {
+                this.save();
+            },
+            resume: function() {
+                this.restore();
+            }
+        }
+
+        function component(width, height, color, x, y, type) {
+            this.type = type;
+            if (type == "image") {
+                this.image = new Image();
+                this.image.src = color;
+            }
+            this.width = width;
+            this.height = height;
+            this.speedX = 0;
+            this.speedY = 0;
+            this.x = x;
+            this.y = y;
+            this.update = function() {
+                ctx = myGameArea.context;
+                if (this.type == "image") {
+                    ctx.drawImage(this.image, this.x, this.y, this.width, this.height);
+                } else if (this.type == "text") {
+                    ctx.font = (this.width + " " + this.height);
+                    //alert(ctx.font);
+                    ctx.fillStyle = color;
+                    ctx.fillText(this.text, this.x, this.y);
+                    this.levelUpdate();
+                } else {
+                    ctx.fillStyle = color;
+                    //alert(ctx.fillStyle);
+                    ctx.fillRect(this.x, this.y, this.width, this.height);
+                }
+            }
+            this.levelUpdate = function() {
+                if (this.type == "text") {
+                    ctx.font = (mylevel.width + " " + mylevel.height);
+                    //alert(ctx.font);
+                    ctx.fillStyle = color;
+                    //alert(ctx.fillStyle);
+                    ctx.fillText("Level" + " " + level, mylevel.x, mylevel.y);
+                }
+            }
+            this.newPos = function() {
+                this.x += this.speedX;
+                this.y += this.speedY;
+                this.hitBottom();
+            }
+            this.hitBottom = function() {
+                var rockBottomD = myGameArea.canvas.height - this.height;
+                //alert(rockBottomY);
+                if (this.y > rockBottomD) {
+                    this.y = rockBottom;
+                } else if (this.y < 0) {
+                    this.y = 0;
+                } else {}
+            }
+            this.crashWith = function(otherobj) {
+                var myleft = this.x;
+                var myright = myleft + (this.width);
+                var mytop = this.y;
+                var mybottom = mytop + (this.height);
+                var otherleft = otherobj.x;
+                var otherright = otherleft + (otherobj.width);
+                var othertop = otherobj.y;
+                var otherbottom = othertop + (otherobj.height);
+                var crash = true;
+                if ((mybottom < othertop) || (mytop > otherbottom) || (myright < otherleft) || (myleft > otherright)) {
+                    crash = false;
+                }
+                return crash;
+            }
+        }
+
+        function updateGameArea() {
+            var x, height, gap, minHeight, maxHeight, minGap, maxGap;
+            for (i = 0; i < myObstacles.length; i += 1) {
+                if (myGamePiece.crashWith(myObstacles[i])) {
+                    //myGamePiece.color = "cartotalled.png"
+                    crashSound.play();
+                    bgMusic.stop();
+                    finalScore = myGameArea.frameNo;
+                    var p = document.getElementById("message");
+                    playerName = document.getElementById("pname").value;
+                    //alert(playerName);
+                    p.innerHTML = "Congrats" + " " + playerName + "!! You have reached Level " + " " + level + " " + "and your score is" + " " + finalScore;
+                    myGameArea.stop();
+                    return;
+                }
+            }
+            myGameArea.clear();
+            myGameArea.frameNo += 1;
+            if (myGameArea.frameNo == 1 || everyinterval(300)) {
+                x = myGameArea.canvas.width;
+                minHeight = 20;
+                maxHeight = 200;
+                height = Math.floor(Math.random() * (maxHeight - minHeight + 1) + minHeight);
+                minGap = 30;
+                maxGap = 300;
+                gap = Math.floor(Math.random() * (maxGap - minGap + 1) + minGap);
+                myObstacles.push(new component(20, height, "green", x, 0));
+                myObstacles.push(new component(20, x - height - gap, "green", x, height + gap));
+            }
+            for (i = 0; i < myObstacles.length; i += 1) {
+                myObstacles[i].x += -1;
+                myObstacles[i].update();
+            }
+            if (myGameArea.key == 37) {
+                myGamePiece.speedX = -speed;
+            }
+            if (myGameArea.key == 39) {
+                myGamePiece.speedX = speed;
+            }
+            if (myGameArea.key == 38) {
+                myGamePiece.speedY = -speed;
+            }
+            if (myGameArea.key == 40) {
+                myGamePiece.speedY = speed;
+            }
+            myScore.text = "Score:" + myGameArea.frameNo;
+            myScore.update();
+            myGamePiece.newPos();
+            myGamePiece.update();
+            //alert(check);
+            if (myGameArea.frameNo == check) {
+                upgradeLevel();
+            }
+        }
+
+
+        function everyinterval(n) {
+            if ((myGameArea.frameNo / n) % 1 == 0) {
+                return true;
+            }
+            return false;
+        }
+
+        function sound(src) {
+            this.sound = document.createElement("audio");
+            this.sound.src = src;
+            this.sound.setAttribute("preload", "auto");
+            this.sound.setAttribute("controls", "none");
+            this.sound.style.display = "none";
+            document.body.appendChild(this.sound);
+            this.play = function() {
+                this.sound.play();
+            }
+            this.stop = function() {
+                this.sound.pause();
+            }
+        }
+
+        function upgradeLevel() {
+            level += 1;
+            speed += 1;
+            check += check;
+        }
+
+    </script>
+</head>
+
+<body>
+    <h1>Did you miss Flappy Bird??</h1>
+    <!--<h4>Instructions</h4>
+    <p>Steer the car without touching the Walls using your arrow keys.</p>
+    <p id="hint">psst, make sure you shift the focus to canvas before you start playing and if the car doesn't start, start the engine with your mouse.</p>
+    <br>-->
+    <div align="center" id="details">
+        <table>
+            <tr>
+                <td>
+                    <p>Enter your Name here:</p>
+                </td>
+                <td><input type="text" id="pname" /></td>
+            </tr>
+            <tr align="center">
+                <td id="btn"> <input type="button" id="startGame" value="Start Game" /> </td>
+            </tr>
+        </table>
+    </div>
+    <br>
+
+    <!--div align="center">
+        <input type="button" id="pause" value="Pause the Game" onclick=myGameArea.pause()/>
+        <input type="button" id="resume" value="Resume the Game" onclick=myGameArea.resume()/>
+    </div-->
+    <p id="message" align="center"></p>
+
+</body>
+
+</html>
